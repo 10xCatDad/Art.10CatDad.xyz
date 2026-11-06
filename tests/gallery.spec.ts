@@ -10,13 +10,13 @@ test("public browsing, restricted writes, and persistent theme", async ({ page, 
  expect((await request.post("/api/images", { headers: { origin: "http://127.0.0.1:5187" } })).status()).toBe(403);
  expect((await request.patch("/api/images/00000000-0000-4000-8000-000000000000", { headers: { origin: "http://127.0.0.1:5187" }, data: { title: "No" } })).status()).toBe(403);
  expect((await request.delete("/api/images/00000000-0000-4000-8000-000000000000", { headers: { origin: "http://127.0.0.1:5187" } })).status()).toBe(403);
- await page.getByLabel("Color theme").selectOption("light");
+ await page.getByRole("button", { name: "Light theme", exact: true }).click();
  await page.reload();
  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
  await expect(page.getByText("No images yet")).toBeVisible();
  await page.screenshot({ path: "outputs/gallery-empty-desktop.png", fullPage: true });
  await page.setViewportSize({ width: 390, height: 844 });
- await page.getByLabel("Color theme").selectOption("dark");
+ await page.getByRole("button", { name: "Dark theme", exact: true }).click();
  await page.screenshot({ path: "outputs/gallery-empty-mobile.png", fullPage: true });
  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
  expect(errors).toEqual([]);
