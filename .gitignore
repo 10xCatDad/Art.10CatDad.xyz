@@ -47,3 +47,14 @@ yarn-error.log*
 # Browser test state
 /playwright-report/
 /test-results/
+
+# Android source is tracked; APKs are attached to GitHub Releases.
+/android/.gradle/
+/android/.kotlin/
+/android/**/build/
+/android/local.properties
+/android/signing.properties
+/android/*.jks
+/android/*.keystore
+/android/.idea/
+/android/releases/

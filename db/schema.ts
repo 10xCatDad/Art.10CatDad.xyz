@@ -4,6 +4,11 @@ export const images = sqliteTable("images", {
 }, table => [index("images_created_at_idx").on(table.createdAt)]);
 export const settings = sqliteTable("settings", { key: text("key").primaryKey(), value: text("value").notNull() });
 
+export const companionDevices = sqliteTable("companion_devices", {
+ id: text("id").primaryKey(), name: text("name").notNull(), tokenHash: text("token_hash").notNull().unique(),
+ createdAt: integer("created_at").notNull(), expiresAt: integer("expires_at").notNull(), lastUsedAt: integer("last_used_at"),
+});
+
 export const uploads = sqliteTable("uploads", {
  id: text("id").primaryKey(), uploadId: text("upload_id").notNull(), mime: text("mime").notNull(),
  width: integer("width").notNull(), height: integer("height").notNull(), bytes: integer("bytes").notNull(),

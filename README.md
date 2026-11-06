@@ -30,6 +30,12 @@ The worker downloads only a published thumbnail, requests structured image tags 
 For a local worker, install Node.js 22.13+ and Codex, then sign in through Codex's native login. Store a random 32-byte-or-longer `TAGGER_TOKEN` in a private environment file and the same value as a Sites runtime secret. Set `ART_SITE_ORIGIN=https://art.10xcatdad.xyz` in that environment file. Never commit these values. `ART_TAGGER_MODEL` optionally overrides the default `gpt-6-luna` model. Run `scripts/codex-tagger.mjs` with those environment variables, or adapt `ops/art-tagger.service` for a systemd user service. Redeploy the site after changing its runtime secret.
 
 
+## Android owner companion
+
+[Art Manager](android/README.md) is the native Android companion for managing gallery media. It supports uploads from the picker or Android Share menu, a local upload inbox, search, editing, tag suggestions, and deletion. Connect it using a revocable device key created at `/manage/devices` while signed in as the owner. Keys expire after 90 days and cannot manage other devices.
+
+Source lives in `android/`. Signed APKs and checksums are attached to this repository's [GitHub Releases](https://github.com/10xCatDad/Art.10CatDad.xyz/releases).
+
 ## Local development
 
 Use Node.js 22.13 or newer.
@@ -40,6 +46,7 @@ npm run build
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_high_kitty_pryde.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_mean_tony_stark.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_amused_ezekiel.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_mighty_rick_jones.sql
 ```
 
 Create the ignored `.dev.vars` file with `OWNER_EMAIL=seedy@sites.test`, then run:
@@ -67,7 +74,7 @@ To include tag-queue and logout integration checks, set a local-only `TAGGER_TOK
 
 `.openai/hosting.json` preserves the registered Sites project and its `DB` / `BUCKET` bindings. Publish through the Sites plugin's source synchronization, packaging, and deployment workflow. Push the exact tested source to GitHub as 10xCatDad as well.
 
-Set the production `OWNER_EMAIL` as a secret in Sites. The first matching platform-authenticated owner sign-in pins the Site-specific user ID in D1. Later authorization compares that stable ID. No visitor can claim the gallery just by signing in. Do not put the owner email in source, browser code, Git, or public metadata. After the ID is pinned, the bootstrap email secret can be removed. Upload, edit, and delete endpoints require owner identity and a matching request Origin.
+Set the production `OWNER_EMAIL` as a secret in Sites. The first matching platform-authenticated owner sign-in pins the Site-specific user ID in D1. Later authorization compares that stable ID. No visitor can claim the gallery just by signing in. Do not put the owner email in source, browser code, Git, or public metadata. After the ID is pinned, the bootstrap email secret can be removed. Browser writes require owner identity and a matching request Origin. Media operations also accept an unexpired companion device key; any supplied Origin must still match. Device key issuance and administration require the browser owner session.
 
 The gallery is public; management requires ChatGPT sign-in. Custom domains require the exact DNS records issued by Sites. Runtime secrets, local credentials, uploaded images, databases, and build output are excluded from Git. See `AGENTS.md` for project identity and authorship requirements.
 

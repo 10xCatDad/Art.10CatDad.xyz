@@ -200,6 +200,7 @@ export default function Gallery({ owner, manage, signOutPath }: { owner: boolean
    <div className="header-actions">
     <div className="theme-switch" role="group" aria-label="Color theme">{[{ value: "system", label: "System theme", Icon: Monitor }, { value: "light", label: "Light theme", Icon: Sun }, { value: "dark", label: "Dark theme", Icon: Moon }].map(({ value, label, Icon }) => <button key={value} type="button" disabled={!ready} title={label} aria-label={label} aria-pressed={theme === value} onClick={() => changeTheme(value)}><Icon size={16}/></button>)}</div>
     {manage ? <a className="button quiet" href="/">View gallery</a> : owner ? <a className="button primary small" href="/manage"><Upload size={15}/> Add images</a> : null}
+    {manage && <a className="button quiet" href="/manage/devices">Devices</a>}
     {signOutPath && <a className="button quiet sign-out" href={signOutPath} target="_top"><LogOut size={16}/> Log out</a>}
    </div>
   </header>
