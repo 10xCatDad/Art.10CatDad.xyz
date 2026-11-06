@@ -82,6 +82,8 @@ class CompanionDeviceTest {
         click("Settings")
         device.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.8f)
         device.wait(Until.findObject(By.desc("Dark theme")), 3000)!!.click()
+        device.waitForIdle()
+        android.os.SystemClock.sleep(300)
         device.takeScreenshot(File(context.getExternalFilesDir(null), "settings-dark.png"))
         click("Media")
         val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, ContentValues().apply {
@@ -104,6 +106,7 @@ class CompanionDeviceTest {
             published = api.list("", "newest").items.first { it.id !in before }.id
             click("Media")
             click("Untitled")
+            assertTrue(device.wait(Until.hasObject(By.text("Edit image")), 5000))
             device.takeScreenshot(File(context.getExternalFilesDir(null), "editor.png"))
             val fields = device.findObjects(By.clazz("android.widget.EditText"))
             assertTrue(fields.size >= 2)

@@ -46,6 +46,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
+import androidx.core.view.WindowCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
@@ -60,6 +61,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val dark = when (model.theme) { "Light" -> false; "Dark" -> true; else -> isSystemInDarkTheme() }
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
             val palette = if (dark) darkColorScheme(
                 primary = Color(0xFF39FF88), onPrimary = Color.Black, primaryContainer = Color(0xFF123821), onPrimaryContainer = Color(0xFF91FFB8),
                 secondary = Color(0xFF39FF88), onSecondary = Color.Black, secondaryContainer = Color(0xFF173823), onSecondaryContainer = Color(0xFF91FFB8),
