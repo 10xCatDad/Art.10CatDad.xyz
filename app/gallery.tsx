@@ -78,6 +78,7 @@ export default function Gallery({ owner, manage, signOutPath }: { owner: boolean
  const [editing, setEditing] = useState<ArtImage | null>(null), [saving, setSaving] = useState(false);
  const [editError, setEditError] = useState(""), [copied, setCopied] = useState(false);
  const [queue, setQueue] = useState<QueueItem[]>([]), [uploading, setUploading] = useState(false), [dragging, setDragging] = useState(false);
+ const [pasteNotice, setPasteNotice] = useState("");
  const [ready, setReady] = useState(false);
  const tagInputRef = useRef<HTMLInputElement>(null);
  const inputRef = useRef<HTMLInputElement>(null), viewerRef = useRef<HTMLDialogElement>(null), editRef = useRef<HTMLDialogElement>(null);
@@ -148,20 +149,37 @@ export default function Gallery({ owner, manage, signOutPath }: { owner: boolean
  function changeTheme(value: string) { setTheme(value); document.documentElement.dataset.theme = value; try { localStorage.setItem("art-theme", value); } catch {} }
  function changeDensity(value: boolean) { setDense(value); try { localStorage.setItem("art-density", value ? "dense" : "comfortable"); } catch {} }
 
- async function upload(files: FileList | File[]) {
+ const upload = useCallback(async (files: FileList | File[]) => {
   if (!owner || !manage || uploadLock.current || !files.length) return;
   const batch = Array.from(files);
-  uploadLock.current = true; setUploading(true);
+  uploadLock.current = true; setUploading(true); setPasteNotice("");
   setQueue(batch.map(file => ({ name: file.name, state: "waiting" })));
   const update = (i: number, data: Partial<QueueItem>) => setQueue(rows => rows.map((row, n) => n === i ? { ...row, ...data } : row));
   try {
    for (let i = 0; i < batch.length; i++) {
     update(i, { state: "uploading", progress: 0 });
-    try { const prepared = await prepareUpload(batch[i]); await uploadPrepared(prepared, progress => update(i, { progress })); update(i, { state: "done" }); refresh(); }
+    try { const prepared = await prepareUpload(batch[i]); await uploadPrepared(prepared, progress => update(i, { progress })); update(i, { state: "done" }); setReload(x => x + 1); }
     catch (e) { update(i, { state: "error", error: e instanceof Error ? e.message : "Upload failed. Try again." }); }
    }
   } finally { uploadLock.current = false; setUploading(false); if (inputRef.current) inputRef.current.value = ""; }
- }
+ }, [owner, manage]);
+ useEffect(() => {
+  if (!owner || !manage || !ready) return;
+  const onPaste = (event: ClipboardEvent) => {
+   if (event.defaultPrevented || active || editing) return;
+   // Leave normal editing and text/URL pastes entirely to the browser.
+   if (event.composedPath().some(target => target instanceof HTMLElement && (target.isContentEditable || target.matches("input, textarea, select, [role=textbox]")))) return;
+   const clipboard = event.clipboardData; if (!clipboard) return;
+   const itemFiles = Array.from(clipboard.items).filter(item => item.kind === "file").map(item => item.getAsFile());
+   const files = (itemFiles.length ? itemFiles : Array.from(clipboard.files)).filter((file): file is File => !!file && (file.type.startsWith("image/") || (!file.type && /\.(png|jpe?g|webp)$/i.test(file.name))));
+   if (!files.length) return;
+   event.preventDefault();
+   if (uploadLock.current) { setPasteNotice("Finish the current upload, then paste again."); return; }
+   void upload(files);
+  };
+  document.addEventListener("paste", onPaste);
+  return () => document.removeEventListener("paste", onPaste);
+ }, [owner, manage, ready, active, editing, upload]);
  async function save(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault(); if (!editing || saving) return;
   const form = new FormData(event.currentTarget); setSaving(true); setEditError("");
@@ -188,7 +206,7 @@ export default function Gallery({ owner, manage, signOutPath }: { owner: boolean
   <main className="main">
    <div className="page-heading"><div><p className="eyebrow">10xCatDad</p><h1>{manage ? "Manage gallery" : "ART & STUFF"}</h1>{manage && <p className="intro">Add images, edit details, and choose what appears here.</p>}</div><span className="collection-count">{loading && !items.length ? "" : `${total.toLocaleString()} ${total === 1 ? "image" : "images"}`}</span></div>
    {manage && <section className={`upload-area ${dragging ? "dragging" : ""}`} onDragOver={event => { event.preventDefault(); setDragging(true); }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false); }} onDrop={event => { event.preventDefault(); setDragging(false); void upload(event.dataTransfer.files); }} aria-label="Upload images">
-    <div className="upload-symbol"><ImagePlus size={27}/></div><div className="upload-text"><h2>Drop your images here</h2><p>JPG, PNG or WebP // Up to 100 MB each</p><p className="fine-print">Images appear publicly as soon as they upload. Embedded metadata is removed.</p></div>
+    <div className="upload-symbol"><ImagePlus size={27}/></div><div className="upload-text"><h2>Drop or paste images here</h2><p>JPG, PNG or WebP // Up to 100 MB each</p><p className="fine-print">Paste with Ctrl+V or ⌘V. Images appear publicly after upload. Embedded metadata is removed.</p>{pasteNotice && <p className="fine-print" role="status">{pasteNotice}</p>}</div>
     <button className="button primary" onClick={() => inputRef.current?.click()} disabled={uploading || !ready}>{uploading ? <LoaderCircle className="spin" size={17}/> : <Upload size={17}/>} {uploading ? "Uploading…" : "Choose images"}</button>
     <input ref={inputRef} className="sr-only" type="file" disabled={!ready || uploading} accept="image/jpeg,image/png,image/webp" multiple onChange={event => event.target.files && void upload(event.target.files)} aria-label="Choose images to upload"/>
    </section>}
