@@ -1,0 +1,38 @@
+[Unit]
+Description=Private gallery image tagger
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Set these three paths for the local checkout, Node, and Codex installation.
+Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+WorkingDirectory=%h/sites/art-10xcatdad
+ExecStart=/usr/bin/node --experimental-strip-types scripts/codex-tagger.mjs
+EnvironmentFile=%h/.config/10xcatdad-art/tagger.env
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+# Only native Codex sign-in refresh writes to its credential store.
+ReadWritePaths=%h/.codex
+InaccessiblePaths=-%h/.ssh -%h/.gnupg -/mnt/c
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+CapabilityBoundingSet=
+LimitCORE=0
+MemoryMax=768M
+TasksMax=96
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

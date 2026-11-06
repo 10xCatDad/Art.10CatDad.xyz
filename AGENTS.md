@@ -6,4 +6,6 @@ Keep runtime secrets in the hosting provider's secret store. Add a Co-authored-b
 
 # Visual style
 
+Always spell the brand `10xCatDad` in visible text and metadata. The gallery heading is `ART & STUFF`. Keep the public heading free of a collection subtitle. The footer links the X logo and `10xCatDad` to the public X profile, without an art label. Provide a native logout link for signed-in visitors that returns to the public gallery.
+
 Use self-hosted Space Grotesk, black surfaces with restrained neon-green accents in dark mode, and neutral light surfaces. Theme controls use accessible System, Light, and Dark icons; preserve the visitor's explicit choice and otherwise follow the system, falling back to dark. Primary action buttons use uppercase text. Prefer `//` for decorative separators in headings, branding, and compact labels. Keep text short and the artwork visually dominant.

@@ -4,7 +4,7 @@ import { randomFillSync, createHash } from 'node:crypto';
 import { writeFile, unlink } from 'node:fs/promises';
 import { stripMetadata } from '../lib/strip-metadata';
 
-const origin = 'http://127.0.0.1:5187';
+const origin = process.env.ART_TEST_ORIGIN || 'http://127.0.0.1:5187';
 const headers = { origin };
 const limit = 100 * 1024 * 1024;
 const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');

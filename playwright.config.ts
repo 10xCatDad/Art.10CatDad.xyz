@@ -1,2 +1,2 @@
 import { defineConfig } from "@playwright/test";
-export default defineConfig({ testDir: "./tests", testMatch: "*.spec.ts", fullyParallel: false, workers: 1, timeout: 45000, outputDir: "outputs/test-results", reporter: "list", use: { baseURL: "http://127.0.0.1:5187", headless: true, viewport: { width: 1440, height: 1000 } } });
+export default defineConfig({ testDir: "./tests", testMatch: "*.spec.ts", fullyParallel: false, workers: 1, timeout: 45000, outputDir: "outputs/test-results", reporter: "list", use: { baseURL: process.env.ART_TEST_ORIGIN || "http://127.0.0.1:5187", headless: true, launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }, viewport: { width: 1440, height: 1000 } } });

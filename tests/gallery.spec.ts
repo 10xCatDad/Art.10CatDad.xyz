@@ -1,15 +1,16 @@
 import { test, expect } from "@playwright/test";
 import sharp from "sharp";
+const origin = process.env.ART_TEST_ORIGIN || "http://127.0.0.1:5187";
 
 test("public browsing, restricted writes, and persistent theme", async ({ page, request }) => {
  const errors: string[] = [];
  page.on("pageerror", error => errors.push(error.message));
  await page.goto("/");
- await expect(page.getByRole("heading", { name: "AI art", exact: true })).toBeVisible();
+ await expect(page.getByRole("heading", { name: "ART & STUFF", exact: true })).toBeVisible();
  await expect(page.getByText("No images yet")).toBeVisible();
- expect((await request.post("/api/images", { headers: { origin: "http://127.0.0.1:5187" } })).status()).toBe(403);
- expect((await request.patch("/api/images/00000000-0000-4000-8000-000000000000", { headers: { origin: "http://127.0.0.1:5187" }, data: { title: "No" } })).status()).toBe(403);
- expect((await request.delete("/api/images/00000000-0000-4000-8000-000000000000", { headers: { origin: "http://127.0.0.1:5187" } })).status()).toBe(403);
+ expect((await request.post("/api/images", { headers: { origin } })).status()).toBe(403);
+ expect((await request.patch("/api/images/00000000-0000-4000-8000-000000000000", { headers: { origin }, data: { title: "No" } })).status()).toBe(403);
+ expect((await request.delete("/api/images/00000000-0000-4000-8000-000000000000", { headers: { origin } })).status()).toBe(403);
  await page.getByRole("button", { name: "Light theme", exact: true }).click();
  await page.reload();
  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");

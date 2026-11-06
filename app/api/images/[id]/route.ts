@@ -24,6 +24,9 @@ export async function DELETE(request: Request, context: Context) {
  const { id } = await context.params;
  if (!isImageId(id) || !env.DB || !env.BUCKET) return Response.json({ error: "Image not found." },{ status: 404 });
  await env.BUCKET.delete([`${id}/original`,`${id}/thumbnail`]);
- await env.DB.prepare("DELETE FROM images WHERE id = ?").bind(id).run();
+ await env.DB.batch([
+  env.DB.prepare("DELETE FROM image_tag_jobs WHERE image_id = ?").bind(id),
+  env.DB.prepare("DELETE FROM images WHERE id = ?").bind(id),
+ ]);
  return Response.json({ ok: true });
 }

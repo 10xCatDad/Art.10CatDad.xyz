@@ -9,3 +9,8 @@ export const uploads = sqliteTable("uploads", {
  width: integer("width").notNull(), height: integer("height").notNull(), bytes: integer("bytes").notNull(),
  state: text("state").notNull().default("uploading"), createdAt: integer("created_at").notNull(),
 }, table => [index("uploads_created_at_idx").on(table.createdAt)]);
+
+export const imageTagJobs = sqliteTable("image_tag_jobs", {
+ imageId: text("image_id").primaryKey(), state: text("state").notNull(), tags: text("tags").notNull().default(""),
+ requestedAt: integer("requested_at").notNull(), startedAt: integer("started_at"), lease: text("lease"),
+}, table => [index("image_tag_jobs_queue_idx").on(table.state, table.requestedAt)]);
