@@ -60,9 +60,22 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val dark = when (model.theme) { "Light" -> false; "Dark" -> true; else -> isSystemInDarkTheme() }
-            val palette = if (dark) darkColorScheme(primary = Color(0xFF39FF88), onPrimary = Color.Black, background = Color.Black,
-                surface = Color(0xFF101312), surfaceVariant = Color(0xFF1C201E), onSurface = Color(0xFFF3F5F4))
-            else lightColorScheme(primary = Color(0xFF006C36), onPrimary = Color.White, background = Color(0xFFF8F9F8), surface = Color.White, surfaceVariant = Color(0xFFE7EBE8))
+            val palette = if (dark) darkColorScheme(
+                primary = Color(0xFF39FF88), onPrimary = Color.Black, primaryContainer = Color(0xFF123821), onPrimaryContainer = Color(0xFF91FFB8),
+                secondary = Color(0xFF39FF88), onSecondary = Color.Black, secondaryContainer = Color(0xFF173823), onSecondaryContainer = Color(0xFF91FFB8),
+                background = Color.Black, onBackground = Color(0xFFF3F5F4), surface = Color(0xFF101312), onSurface = Color(0xFFF3F5F4),
+                surfaceVariant = Color(0xFF1C201E), onSurfaceVariant = Color(0xFFBAC4BD), surfaceTint = Color(0xFF39FF88),
+                surfaceDim = Color.Black, surfaceBright = Color(0xFF262B28), surfaceContainerLowest = Color.Black,
+                surfaceContainerLow = Color(0xFF080B09), surfaceContainer = Color(0xFF101312), surfaceContainerHigh = Color(0xFF171C19),
+                surfaceContainerHighest = Color(0xFF202622), outline = Color(0xFF6A776E), outlineVariant = Color(0xFF303B34))
+            else lightColorScheme(
+                primary = Color(0xFF006C36), onPrimary = Color.White, primaryContainer = Color(0xFFCFEDD9), onPrimaryContainer = Color(0xFF002E15),
+                secondary = Color(0xFF315840), onSecondary = Color.White, secondaryContainer = Color(0xFFD6EBDD), onSecondaryContainer = Color(0xFF183B25),
+                background = Color(0xFFF8FAF8), onBackground = Color(0xFF18201B), surface = Color.White, onSurface = Color(0xFF18201B),
+                surfaceVariant = Color(0xFFE7EBE8), onSurfaceVariant = Color(0xFF4C574F), surfaceTint = Color(0xFF006C36),
+                surfaceDim = Color(0xFFD9E0DA), surfaceBright = Color.White, surfaceContainerLowest = Color.White,
+                surfaceContainerLow = Color(0xFFF4F6F4), surfaceContainer = Color(0xFFEFF2EF), surfaceContainerHigh = Color(0xFFE8EDE9),
+                surfaceContainerHighest = Color(0xFFE1E7E2), outline = Color(0xFF727C75), outlineVariant = Color(0xFFC6CFC9))
             val base = Typography(); val font = FontFamily(Font(R.font.space_grotesk))
             MaterialTheme(colorScheme = palette, typography = Typography(
                 headlineLarge = base.headlineLarge.copy(fontFamily = font), headlineMedium = base.headlineMedium.copy(fontFamily = font),
@@ -177,7 +190,7 @@ private fun date(millis: Long) = DateFormat.getDateInstance(DateFormat.MEDIUM).f
 @Composable private fun Media(model: ArtViewModel, choose: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Column { Text("Media", style = MaterialTheme.typography.headlineMedium); Text("${model.total} images // ${formatSize(model.bytes)}", style = MaterialTheme.typography.bodySmall) }
+            Column { Text("Media", style = MaterialTheme.typography.headlineMedium); Text("${model.total} ${if (model.total == 1) "image" else "images"} // ${formatSize(model.bytes)}", style = MaterialTheme.typography.bodySmall) }
             Button(onClick = choose, enabled = !model.uploading && !model.importing) { Icon(Icons.Outlined.Add, null); Text("ADD") }
         }
         OutlinedTextField(model.query, model::search, label = { Text("Search title, description, tags") }, singleLine = true, leadingIcon = { Icon(Icons.Outlined.Search, null) }, modifier = Modifier.fillMaxWidth())

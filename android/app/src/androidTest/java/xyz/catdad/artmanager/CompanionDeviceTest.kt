@@ -79,6 +79,11 @@ class CompanionDeviceTest {
         val input = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)
         assertNotNull(input); input.text = key; click("CONNECT")
         assertTrue(device.wait(Until.hasObject(By.desc("Refresh media")), 15000))
+        click("Settings")
+        device.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.8f)
+        device.wait(Until.findObject(By.desc("Dark theme")), 3000)!!.click()
+        device.takeScreenshot(File(context.getExternalFilesDir(null), "settings-dark.png"))
+        click("Media")
         val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, "ArtManager-local-test.png"); put(MediaStore.Images.Media.MIME_TYPE, "image/png")
         })!!
