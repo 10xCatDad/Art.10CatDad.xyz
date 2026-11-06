@@ -4,6 +4,7 @@ import { isImageId, MAX_THUMB_BYTES, metadata, sniffImage, UPLOAD_PART_BYTES } f
 import { stripMetadata } from "@/lib/strip-metadata";
 import { validateImageStream } from "@/lib/validate-image-stream";
 import { boundedBody, sessionFor, partSize, discardUpload, UploadError, uploadError, type UploadSession } from "@/lib/uploads";
+import { queueTagStatement } from "@/lib/tag-queue";
 type Context = { params: Promise<{ id: string }> };
 async function access(request: Request, context: Context) {
  const denied = await authorizeWrite(request); if (denied) return denied;
@@ -55,6 +56,7 @@ export async function POST(request: Request, context: Context) {
   const info = metadata({ title: form.get("title"), caption: form.get("caption"), tags: form.get("tags") });
   await env.DB!.batch([
    env.DB!.prepare("INSERT INTO images (id,title,caption,tags,mime,width,height,bytes,created_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(id,info.title,info.caption,info.tags,session.mime,session.width,session.height,complete.size+preview.byteLength,Date.now()),
+   queueTagStatement(env.DB!, "id=?", [id]),
    env.DB!.prepare("DELETE FROM uploads WHERE id = ?").bind(id),
   ]);
   return Response.json({ id }, { status: 201 });

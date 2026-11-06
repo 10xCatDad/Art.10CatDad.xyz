@@ -16,7 +16,7 @@ export async function PATCH(request: Request, context: Context) {
  let input; try { input = await request.json(); } catch { return Response.json({ error: "Invalid image details." },{ status: 400 }); }
  if (!input || typeof input !== "object") return Response.json({ error: "Invalid image details." },{ status: 400 });
  const info = metadata(input);
- const result = await env.DB.prepare("UPDATE images SET title = ?,caption = ?,tags = ? WHERE id = ?").bind(info.title,info.caption,info.tags,id).run();
+ const result = await env.DB.prepare("UPDATE images SET title = ?,caption = ?,tags = CASE WHEN ? THEN ? ELSE tags END WHERE id = ?").bind(info.title,info.caption,Object.hasOwn(input, "tags") ? 1 : 0,info.tags,id).run();
  return result.meta.changes ? Response.json({ ok: true }) : Response.json({ error: "Image not found." },{ status: 404 });
 }
 export async function DELETE(request: Request, context: Context) {

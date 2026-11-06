@@ -21,6 +21,6 @@ export function mergeTags(current: string, suggested: string[]): string {
 export type TagJob = { image_id: string; state: "pending" | "running" | "done" | "error"; tags: string; requested_at: number; started_at: number | null; lease: string | null };
 export const TAG_JOB_TIMEOUT = 180_000;
 export function publicTagJob(job: TagJob, now = Date.now()) {
- const expired = ["pending", "running"].includes(job.state) && job.requested_at < now - TAG_JOB_TIMEOUT;
+ const expired = job.state === "running" && (job.started_at ?? job.requested_at) < now - TAG_JOB_TIMEOUT;
  return { state: expired ? "error" : job.state, tags: job.state === "done" ? parseTags(JSON.parse(job.tags)) : [], error: expired || job.state === "error" ? "Tag generation could not finish. Try again." : null };
 }

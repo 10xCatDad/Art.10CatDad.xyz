@@ -2,7 +2,7 @@ export const UPLOAD_PART_BYTES = 8 * 1024 * 1024;
 export const MAX_IMAGE_BYTES = 100 * 1024 * 1024;
 export const MAX_THUMB_BYTES = 1024 * 1024;
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-export type ArtImage = { id: string; title: string; caption: string; tags: string; mime: string; width: number; height: number; bytes: number; created_at: number };
+export type ArtImage = { id: string; title: string; caption: string; tags: string; mime: string; width: number; height: number; bytes: number; created_at: number; favorite: number };
 export function metadata(input: { title?: unknown; caption?: unknown; tags?: unknown }) {
  const clean = (v: unknown, max: number) => typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, max) : "";
  return { title: clean(input.title, 160) || "Untitled", caption: clean(input.caption, 3000), tags: [...new Set(clean(input.tags, 600).split(",").map(t => t.trim().slice(0, 40)).filter(Boolean))].slice(0, 12).join(", ") };

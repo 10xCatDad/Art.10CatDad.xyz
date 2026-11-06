@@ -3,7 +3,8 @@
 A public gallery for art and visual experiments, built for ChatGPT Sites.
 
 - Responsive image grid with two thumbnail sizes
-- Search across titles, descriptions, and tags; newest, oldest, and title sorting
+- Search, exact tag filters, favorites, and albums; date, title, tag, and favorite sorting
+- Owner-only favorites and album editing; public album browsing
 - Full-image viewer, arrow-key navigation, share links, and downloads
 - System, light, and dark themes, saved per device
 - Owner-only batch uploads, editing, and deletion
@@ -19,13 +20,17 @@ Uploads accept JPG, PNG, and WebP, up to 100 MiB per file and 100 megapixels. Th
 
 Only upload images whose visible content you want to publish. Metadata removal does not remove text or identifying content drawn into an image. Titles, descriptions, and tags are public.
 
-## Suggested tags
+## Tags and organization
 
-Open an image's edit dialog and choose **Generate tags**. Suggestions are added to the Tags field alongside existing tags, without duplicates. Review them and choose **Save changes** to publish. Closing the dialog leaves the image unchanged. There are at most 12 tags per image.
+New uploads automatically queue for tagging. Generated tags save publicly as soon as they finish, alongside existing tags without case-insensitive duplicates, up to 12 per image. Manual edits still use **Save changes**. Generating from the edit dialog also saves automatically, even if the dialog is closed.
 
-Tag generation uses a private worker on the owner's computer and its existing Codex subscription sign-in. No OpenAI API key is required. The computer, its Linux environment, and the worker must be running; otherwise the gallery reports that tagging is offline. Cached suggestions can still be reused. Generation uses subscription usage and depends on the current Codex subscription transport.
+On **Manage gallery**, check individual images or choose **Select shown**, then **Generate tags for selected**. **All untagged** queues every untagged image in the gallery, including images outside the current search, album, or loaded page. Pending jobs persist when you leave the page or the worker is offline. Progress shows queued, running, and failed jobs; use **Retry failed** for failed or stalled generation.
 
-The worker downloads only a published thumbnail, requests structured image tags with tools disabled, and returns suggestions through an authenticated endpoint. It does not send account details to the gallery. The public browser never receives worker credentials or Codex tokens. Suggestions remain private until the owner saves them.
+Star an image to favorite it. Create an album, select images, choose the destination album, and use **Add to album**. Images can belong to multiple albums. Within an album, **Remove from this album** removes membership only. Deleting an album keeps its images. Only the owner and authorized owner devices can change favorites or albums; visitors can browse them. Filter by album, exact tag, untagged, or favorites, combine filters with search, and sort by newest/oldest upload date, title, tag, or favorites first.
+
+Tag generation uses a private worker on the owner's computer and its existing Codex subscription sign-in. No OpenAI API key is required. The computer, its Linux environment, and the worker must be running for queued jobs to finish. Generation uses subscription usage and depends on the current Codex subscription transport.
+
+The worker downloads only a published thumbnail, requests structured image tags with tools disabled, and returns tags through an authenticated endpoint. It does not send account details to the gallery. The public browser never receives worker credentials or Codex tokens.
 
 For a local worker, install Node.js 22.13+ and Codex, then sign in through Codex's native login. Store a random 32-byte-or-longer `TAGGER_TOKEN` in a private environment file and the same value as a Sites runtime secret. Set `ART_SITE_ORIGIN=https://art.10xcatdad.xyz` in that environment file. Never commit these values. `ART_TAGGER_MODEL` optionally overrides the default `gpt-6-luna` model. Run `scripts/codex-tagger.mjs` with those environment variables, or adapt `ops/art-tagger.service` for a systemd user service. Redeploy the site after changing its runtime secret.
 
@@ -47,6 +52,7 @@ node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_mean_tony_stark.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_amused_ezekiel.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_mighty_rick_jones.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0004_fat_rhodey.sql
 ```
 
 Create the ignored `.dev.vars` file with `OWNER_EMAIL=seedy@sites.test`, then run:

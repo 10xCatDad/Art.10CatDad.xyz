@@ -1,7 +1,15 @@
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index, primaryKey } from "drizzle-orm/sqlite-core";
 export const images = sqliteTable("images", {
  id: text("id").primaryKey(), title: text("title").notNull(), caption: text("caption").notNull().default(""), tags: text("tags").notNull().default(""), mime: text("mime").notNull(), width: integer("width").notNull(), height: integer("height").notNull(), bytes: integer("bytes").notNull(), createdAt: integer("created_at").notNull(),
+ favorite: integer("favorite").notNull().default(0),
 }, table => [index("images_created_at_idx").on(table.createdAt)]);
+export const albums = sqliteTable("albums", {
+ id: text("id").primaryKey(), name: text("name").notNull(), createdAt: integer("created_at").notNull(),
+});
+export const albumImages = sqliteTable("album_images", {
+ albumId: text("album_id").notNull().references(() => albums.id, { onDelete: "cascade" }),
+ imageId: text("image_id").notNull().references(() => images.id, { onDelete: "cascade" }),
+}, table => [primaryKey({ columns: [table.albumId, table.imageId] }), index("album_images_image_idx").on(table.imageId)]);
 export const settings = sqliteTable("settings", { key: text("key").primaryKey(), value: text("value").notNull() });
 
 export const companionDevices = sqliteTable("companion_devices", {

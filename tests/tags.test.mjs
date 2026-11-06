@@ -12,7 +12,9 @@ test('suggestions preserve existing manual tags without case duplicates', () => 
 });
 test('owner status never returns the worker lease and expires stalled jobs', () => {
  const job={image_id:'id',state:'running',tags:'',requested_at:100,started_at:200,lease:'private'};
- assert.equal(publicTagJob(job,100+TAG_JOB_TIMEOUT+1).state,'error');
+ assert.equal(publicTagJob(job,200+TAG_JOB_TIMEOUT+1).state,'error');
+ assert.equal(publicTagJob({...job,state:'pending',started_at:null},10*TAG_JOB_TIMEOUT).state,'pending');
+ assert.equal(publicTagJob(job,100+TAG_JOB_TIMEOUT+1).state,'running');
  assert.equal('lease' in publicTagJob(job,200),false);
  assert.deepEqual(publicTagJob({...job,state:'done',tags:JSON.stringify({tags:['cat']})},300).tags,['cat']);
 });
