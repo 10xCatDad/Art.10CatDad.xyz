@@ -74,3 +74,5 @@ The gallery is public; management requires ChatGPT sign-in. Custom domains requi
 ## Storage
 
 Sites currently documents no fixed per-Site file-storage limit and a 10 GB per-Site database limit. Plan allowances and future usage charges are separate from those limits: https://learn.chatgpt.com/docs/sites#pricing.
+
+HumansOnly can store unlisted result images separately from the gallery. These images never appear in gallery listings, search, tags, or counts. A dedicated server-to-server secret authorizes bounded PNG uploads, with metadata stripped before storage. Anyone with a result link can view it; X controls whether its image preview appears. No result images belong in Git.

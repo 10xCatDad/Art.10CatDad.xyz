@@ -4,5 +4,6 @@ declare namespace Cloudflare {
     BUCKET?: R2Bucket;
     OWNER_EMAIL?: string;
     TAGGER_TOKEN?: string;
+    RESULT_IMAGE_TOKEN?: string;
   }
 }
