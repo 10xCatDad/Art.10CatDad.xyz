@@ -1,4 +1,5 @@
-export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+export const UPLOAD_PART_BYTES = 8 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 100 * 1024 * 1024;
 export const MAX_THUMB_BYTES = 1024 * 1024;
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export type ArtImage = { id: string; title: string; caption: string; tags: string; mime: string; width: number; height: number; bytes: number; created_at: number };

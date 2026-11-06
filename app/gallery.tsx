@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDownToLine, ArrowLeft, ArrowRight, Check, Copy, Grid2X2, ImagePlus, Images, LayoutGrid, LoaderCircle, Monitor, Moon, Pencil, Search, Sun, Trash2, Upload, X } from "lucide-react";
-import { IMAGE_TYPES, MAX_IMAGE_BYTES, type ArtImage } from "@/lib/images";
+import { IMAGE_TYPES, MAX_IMAGE_BYTES, sniffImage, type ArtImage } from "@/lib/images";
+import { needsTransparency, stripEncodedMetadata } from "@/lib/strip-encoded-metadata";
 
 type Listing = { items: ArtImage[]; total: number; bytes: number; nextOffset: number | null };
-type QueueItem = { name: string; state: "waiting" | "uploading" | "done" | "error"; error?: string };
+type QueueItem = { name: string; state: "waiting" | "uploading" | "done" | "error"; error?: string; progress?: number };
 const media = (item: ArtImage, variant = "thumbnail") => `/media/${item.id}/${variant}`;
 const size = (bytes: number) => bytes > 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(2)} GB` : `${(bytes / 1024 ** 2).toFixed(1)} MB`;
 
@@ -18,32 +19,50 @@ async function jsonRequest<T = unknown>(url: string, options?: RequestInit): Pro
 }
 
 async function prepareUpload(file: File) {
- if (!IMAGE_TYPES.includes(file.type)) throw new Error("Use a JPG, PNG, or WebP image.");
- if (file.size > MAX_IMAGE_BYTES) throw new Error("This image is larger than 25 MB.");
- const bitmap = await createImageBitmap(file);
+ const mime = sniffImage(new Uint8Array(await file.slice(0,16).arrayBuffer()));
+ if (!mime || !IMAGE_TYPES.includes(mime)) throw new Error("Use a JPG, PNG, or WebP image.");
+ if (file.size > MAX_IMAGE_BYTES) throw new Error("This image is larger than 100 MB.");
+ const bitmap = await createImageBitmap(file), canvas = document.createElement("canvas");
  try {
-  if (bitmap.width * bitmap.height > 100000000) throw new Error("This image is larger than 100 megapixels.");
-  const canvas = document.createElement("canvas");
+  if (bitmap.width * bitmap.height > 100000000 || bitmap.width > 30000 || bitmap.height > 30000) throw new Error("Use an image up to 100 megapixels and 30,000 pixels per side.");
   canvas.width = bitmap.width; canvas.height = bitmap.height;
-  const context = canvas.getContext("2d");
+  const context = canvas.getContext("2d", { alpha: await needsTransparency(file, mime) });
   if (!context) throw new Error("This browser cannot prepare images.");
   context.drawImage(bitmap, 0, 0);
   const encode = (type: string, quality?: number) => new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Image conversion failed.")), type, quality));
   // Pixel re-encoding drops EXIF, XMP, comments, filenames, and embedded prompts.
-  const original = await encode(file.type, .97);
-  if (original.size > MAX_IMAGE_BYTES) throw new Error("The cleaned image is larger than 25 MB. Export a smaller copy and try again.");
+  const original = await stripEncodedMetadata(await encode(mime, .97));
+  if (original.size > MAX_IMAGE_BYTES) throw new Error("The cleaned image is larger than 100 MB. Export a smaller copy and try again.");
   const scale = Math.min(1, 960 / Math.max(bitmap.width, bitmap.height));
   canvas.width = Math.max(1, Math.round(bitmap.width * scale));
   canvas.height = Math.max(1, Math.round(bitmap.height * scale));
   context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  const thumbnail = await encode("image/webp", .82);
-  const form = new FormData();
-  form.set("image", original, "art." + file.type.split("/")[1]);
-  form.set("thumbnail", thumbnail, "preview.webp");
-  form.set("title", "Untitled");
-  form.set("width", String(bitmap.width)); form.set("height", String(bitmap.height));
-  return form;
- } finally { bitmap.close(); }
+  const thumbnail = await stripEncodedMetadata(await encode("image/webp", .82));
+  return { original, thumbnail, width: bitmap.width, height: bitmap.height };
+ } finally { canvas.width = canvas.height = 0; bitmap.close(); }
+}
+
+async function uploadPrepared(image: Awaited<ReturnType<typeof prepareUpload>>, onProgress: (progress: number) => void) {
+ const { id, partBytes } = await jsonRequest<{ id: string; partBytes: number }>("/api/uploads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mime: image.original.type, bytes: image.original.size, width: image.width, height: image.height }) });
+ try {
+  const parts: { partNumber: number; etag: string }[] = [];
+  for (let offset = 0; offset < image.original.size; offset += partBytes) {
+   const partNumber = parts.length + 1, chunk = image.original.slice(offset, offset + partBytes);
+   let part: { partNumber: number; etag: string } | undefined;
+   for (let attempt = 0; attempt < 3; attempt++) {
+    try { part = await jsonRequest(`/api/uploads/${id}?part=${partNumber}`, { method: "PUT", body: chunk }); break; }
+    catch (error) { if (attempt === 2) throw error; await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1))); }
+   }
+   parts.push(part!); onProgress(Math.round(Math.min(offset + chunk.size, image.original.size) / image.original.size * 95));
+  }
+  const form = new FormData(); form.set("parts", JSON.stringify(parts)); form.set("thumbnail", image.thumbnail, "preview.webp"); form.set("title", "Untitled");
+  await jsonRequest(`/api/uploads/${id}`, { method: "POST", body: form }); onProgress(100);
+ } catch (error) {
+  // Completion can succeed even when its response is lost. Never remove that image.
+  try { const existing = await fetch(`/api/images/${id}`); if (existing.ok) { onProgress(100); return; } } catch {}
+  await fetch(`/api/uploads/${id}`, { method: "DELETE" }).catch(() => {});
+  throw error;
+ }
 }
 
 export default function Gallery({ owner, manage }: { owner: boolean; manage: boolean }) {
@@ -134,8 +153,8 @@ export default function Gallery({ owner, manage }: { owner: boolean; manage: boo
   const update = (i: number, data: Partial<QueueItem>) => setQueue(rows => rows.map((row, n) => n === i ? { ...row, ...data } : row));
   try {
    for (let i = 0; i < batch.length; i++) {
-    update(i, { state: "uploading" });
-    try { const form = await prepareUpload(batch[i]); await jsonRequest("/api/images", { method: "POST", body: form }); update(i, { state: "done" }); refresh(); }
+    update(i, { state: "uploading", progress: 0 });
+    try { const prepared = await prepareUpload(batch[i]); await uploadPrepared(prepared, progress => update(i, { progress })); update(i, { state: "done" }); refresh(); }
     catch (e) { update(i, { state: "error", error: e instanceof Error ? e.message : "Upload failed. Try again." }); }
    }
   } finally { uploadLock.current = false; setUploading(false); if (inputRef.current) inputRef.current.value = ""; }
@@ -165,11 +184,11 @@ export default function Gallery({ owner, manage }: { owner: boolean; manage: boo
   <main className="main">
    <div className="page-heading"><div><p className="eyebrow">10XCATDAD’S COLLECTION</p><h1>{manage ? "Manage gallery" : "AI art"}</h1><p className="intro">{manage ? "Add images, edit details, and choose what appears here." : "A collection of things I’ve made with AI."}</p></div><span className="collection-count">{loading && !items.length ? "" : `${total.toLocaleString()} ${total === 1 ? "image" : "images"}`}</span></div>
    {manage && <section className={`upload-area ${dragging ? "dragging" : ""}`} onDragOver={event => { event.preventDefault(); setDragging(true); }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false); }} onDrop={event => { event.preventDefault(); setDragging(false); void upload(event.dataTransfer.files); }} aria-label="Upload images">
-    <div className="upload-symbol"><ImagePlus size={27}/></div><div className="upload-text"><h2>Drop your images here</h2><p>JPG, PNG or WebP // Up to 25 MB each</p><p className="fine-print">Images appear publicly as soon as they upload. Embedded metadata is removed.</p></div>
+    <div className="upload-symbol"><ImagePlus size={27}/></div><div className="upload-text"><h2>Drop your images here</h2><p>JPG, PNG or WebP // Up to 100 MB each</p><p className="fine-print">Images appear publicly as soon as they upload. Embedded metadata is removed.</p></div>
     <button className="button primary" onClick={() => inputRef.current?.click()} disabled={uploading || !ready}>{uploading ? <LoaderCircle className="spin" size={17}/> : <Upload size={17}/>} {uploading ? "Uploading…" : "Choose images"}</button>
     <input ref={inputRef} className="sr-only" type="file" disabled={!ready || uploading} accept="image/jpeg,image/png,image/webp" multiple onChange={event => event.target.files && void upload(event.target.files)} aria-label="Choose images to upload"/>
    </section>}
-   {manage && queue.length > 0 && <section className="upload-queue" aria-label="Upload progress" aria-live="polite"><div className="queue-heading"><strong>{queue.filter(row => row.state === "done").length} of {queue.length} uploaded</strong>{!uploading && <button className="icon-button" aria-label="Dismiss upload progress" onClick={() => setQueue([])}><X size={16}/></button>}</div>{queue.map((row, i) => <div key={i} className={`queue-row ${row.state}`}><span>{row.state === "done" ? <Check size={16}/> : row.state === "uploading" ? <LoaderCircle size={16} className="spin"/> : row.state === "error" ? <X size={16}/> : <span className="queue-dot"/>}</span><span className="queue-name">{row.name}{row.error && <small>{row.error}</small>}</span><span className="muted">{row.state === "done" ? "Uploaded" : row.state === "waiting" ? "Waiting" : row.state === "uploading" ? "Uploading" : "Failed"}</span></div>)}</section>}
+   {manage && queue.length > 0 && <section className="upload-queue" aria-label="Upload progress" aria-live="polite"><div className="queue-heading"><strong>{queue.filter(row => row.state === "done").length} of {queue.length} uploaded</strong>{!uploading && <button className="icon-button" aria-label="Dismiss upload progress" onClick={() => setQueue([])}><X size={16}/></button>}</div>{queue.map((row, i) => <div key={i} className={`queue-row ${row.state}`}><span>{row.state === "done" ? <Check size={16}/> : row.state === "uploading" ? <LoaderCircle size={16} className="spin"/> : row.state === "error" ? <X size={16}/> : <span className="queue-dot"/>}</span><span className="queue-name">{row.name}{row.error && <small>{row.error}</small>}</span><span className="muted">{row.state === "done" ? "Uploaded" : row.state === "waiting" ? "Waiting" : row.state === "uploading" ? `${row.progress || 0}%` : "Failed"}</span></div>)}</section>}
    <div className="toolbar"><label className="search"><Search size={18}/><input disabled={!ready} placeholder="Search images…" aria-label="Search images" value={query} onChange={event => setQuery(event.target.value)}/>{query && <button className="icon-button" onClick={() => setQuery("")} aria-label="Clear search"><X size={15}/></button>}</label><div className="view-controls"><select disabled={!ready} className="sort" aria-label="Sort images" value={sort} onChange={event => setSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="title">Title A–Z</option></select><div className="density"><button className={dense ? "" : "selected"} onClick={() => changeDensity(false)} title="Large images" aria-label="Large images" aria-pressed={!dense}><Grid2X2 size={17}/></button><button className={dense ? "selected" : ""} onClick={() => changeDensity(true)} title="Small images" aria-label="Small images" aria-pressed={dense}><LayoutGrid size={17}/></button></div></div></div>
    {error && <div className="error-banner" role="alert"><span>{error}</span><button className="button quiet" onClick={refresh}>Retry</button></div>}
    {!error && loading && !items.length ? <div className="empty"><LoaderCircle className="spin" size={25}/><p>Loading images…</p></div> : !error && !items.length ? <div className="empty"><div className="empty-icon"><Images size={32} strokeWidth={1.3}/></div><h2>{query ? "No images found" : "No images yet"}</h2><p>{query ? "Try a different title, description, or tag." : manage ? "Upload your first image to start the collection." : "New creations will appear here."}</p>{query ? <button className="button quiet" onClick={() => setQuery("")}>Clear search</button> : manage ? <button className="button quiet" onClick={() => inputRef.current?.click()}>Choose images <ArrowRight size={15}/></button> : null}</div> : <section className={`gallery-grid ${dense ? "dense" : ""}`} aria-label="Art gallery" aria-busy={loading}>{items.map(item => <article className="art-card" key={item.id}><button className="image-button" aria-label={`View ${item.title}`} onClick={() => openImage(item)} style={{ aspectRatio: `${item.width}/${item.height}` }}><img src={media(item)} alt={item.title} width={item.width} height={item.height} loading="lazy" decoding="async"/><span className="image-hover">View image <ArrowRight size={16}/></span></button><div className="card-details"><button className="card-title" onClick={() => openImage(item)}>{item.title}</button>{manage && <button className="icon-button edit-card" aria-label={`Edit ${item.title}`} onClick={() => { setEditError(""); setEditing(item); }}><Pencil size={14}/></button>}</div>{item.tags && <p className="card-tags">{item.tags}</p>}</article>)}</section>}

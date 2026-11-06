@@ -13,7 +13,7 @@ A simple public gallery for AI art, built for ChatGPT Sites.
 
 Browse at `https://art.10xcatdad.xyz`. To add art, open `/manage` and sign in with the owning ChatGPT account. Drop images onto the page or choose multiple files. Each successful upload appears publicly immediately. Click the pencil to add a title, description, or comma-separated tags.
 
-Uploads accept JPG, PNG, and WebP, up to 25 MiB per file and 100 megapixels. These are application limits. The browser re-encodes the image at its original dimensions and makes a small preview. The server also removes embedded EXIF, XMP, comments, and other non-rendering metadata. Uploaded filenames are not published. Titles start as “Untitled.” JPEG and WebP copies may be recompressed. Keep your source artwork separately.
+Uploads accept JPG, PNG, and WebP, up to 100 MiB per file and 100 megapixels. These are application limits. The browser re-encodes the image at its original dimensions and makes a small preview. The server validates the original image as a stream and rejects any remaining embedded metadata. Uploads use 8 MiB parts with retries and progress, keeping each request small. Images become visible only after all parts and the preview pass validation. Abandoned uploads expire after 24 hours and are cleaned during subsequent uploads. Uploaded filenames are not published. Titles start as “Untitled.” JPEG and WebP copies may be recompressed. Keep your source artwork separately.
 
 Only upload images whose visible content you want to publish. Metadata removal does not remove text or identifying content drawn into an image. Titles, descriptions, and tags are public.
 
@@ -25,6 +25,7 @@ Use Node.js 22.13 or newer.
 npm ci
 npm run build
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_high_kitty_pryde.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_mean_tony_stark.sql
 ```
 
 Create the ignored `.dev.vars` file with `OWNER_EMAIL=seedy@sites.test`, then run:
@@ -44,7 +45,7 @@ npm run test:browser
 npm run build
 ```
 
-Browser tests require the development server above, a clean local gallery, and Playwright Chromium. Run `npx playwright install chromium` if needed. Tests cover anonymous write rejection, cross-origin rejection, uploads, metadata removal, editing, search, reload persistence, the viewer, themes, mobile layout, and deletion. Test artwork stays local and is removed after the successful test. Screenshots and test output live in ignored `outputs/`.
+Browser tests require the development server above, a clean local gallery, and Playwright Chromium. Run `npx playwright install chromium` if needed. Tests cover anonymous write rejection, cross-origin rejection, PNG/WebP/JPEG uploads, metadata removal, size limits, failed-upload cleanup, and a real PNG over 99 MiB through both the chunk API and browser file picker. They also cover editing, search, reload persistence, the viewer, themes, mobile layout, and deletion. Test artwork stays local and is removed after the successful test. Screenshots and test output live in ignored `outputs/`.
 
 ## Hosting and identity
 
